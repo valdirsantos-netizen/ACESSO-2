@@ -1,6 +1,3 @@
-const userRole = 'porteiro';
-
-
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -53,6 +50,7 @@ export default function Page() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('Sua Empresa');
+  const [userRole] = useState<'porteiro' | 'admin'>('porteiro');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scanningRef = useRef(false);
 
@@ -376,6 +374,82 @@ export default function Page() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (userRole === 'porteiro') {
+    return (
+      <>
+        <div className="container">
+          <div className="topbar">
+            <div className="brand">
+              <div className="logo">P</div>
+              <div>
+                <h1>Controle de Acesso Corporativo</h1>
+                <p>{companyName} • Painel do porteiro</p>
+              </div>
+            </div>
+            <div className="status">
+              <div className={`pill ${connected ? 'success' : ''}`}>{connected ? 'Leitor pronto' : 'Leitor desconectado'}</div>
+              <div className="pill primary">Modo operacional: <strong>{mode}</strong></div>
+              <div className="pill">Operador: <strong>{operatorName}</strong></div>
+              <button className="btn ghost" onClick={signOut}>Sair</button>
+            </div>
+          </div>
+
+          <section className="card" style={{ marginTop: 18 }}>
+            <div className="head">
+              <div>
+                <h2>Registrar entrada e saída</h2>
+                <div className="sub">Use a câmera para ler o QR Code ou digite a tag manualmente.</div>
+              </div>
+              <div className="segment">
+                <button className="btn success" onClick={() => setModeValue('Entrada')}>Entrada</button>
+                <button className="btn danger" onClick={() => setModeValue('Saída')}>Saída</button>
+              </div>
+            </div>
+
+            <div className="content">
+              <div className="split">
+                <div>
+                  <div className="scanBox">
+                    <div className="cameraFrame">
+                      <div id="reader" />
+                      <div className="cameraHint">{cameraHint}</div>
+                    </div>
+
+                    <div className="segment">
+                      <button className="btn primary" onClick={startScanner}>Iniciar câmera</button>
+                      <button className="btn ghost" onClick={stopScanner}>Parar câmera</button>
+                    </div>
+
+                    <div className="scanMsg">{scanMsg}</div>
+                    <div className="tiny">O QR deve conter a tag cadastrada, por exemplo: TAG-001.</div>
+                  </div>
+
+                  <div className="stats">
+                    <div className="stat"><div className="k">Liberações</div><div className="v">{allowed}</div></div>
+                    <div className="stat"><div className="k">Bloqueios</div><div className="v">{blocked}</div></div>
+                    <div className="stat"><div className="k">Leitor</div><div className="v">{connected ? 'OK' : 'OFF'}</div></div>
+                  </div>
+                </div>
+
+                <div className="form">
+                  <div className="field"><label>Tag QR</label><input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Ex.: TAG-001" /></div>
+                  <div className="field"><label>Placa</label><input value={plateInput} onChange={(e) => setPlateInput(e.target.value)} placeholder="Ex.: ABC1D23" /></div>
+                  <div className="field"><label>Nome do colaborador</label><input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Ex.: João Silva" /></div>
+                  <div className="segment">
+                    <button className="btn primary" onClick={() => validate()}>Validar acesso</button>
+                    <button className="btn ghost" onClick={() => { setTagInput('TAG-001'); setPlateInput('ABC1D23'); setNameInput('Mariana Lima'); }}>Preencher exemplo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="footer">Controle de Acesso Corporativo • {companyName}</div>
+      </>
     );
   }
 
