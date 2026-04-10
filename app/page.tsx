@@ -15,3 +15,20 @@ async function loadVehicles() {
   console.log("Veículos carregados com sucesso:", data);
   setVehicles(data || []);
 }
+
+async function loadAccesses() {
+    if (!supabase) return;
+    
+    const { data, error } = await supabase
+      .from('access_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error("Erro ao buscar logs:", error.message);
+      return;
+    }
+
+    setAccesses(data || []);
+  }
