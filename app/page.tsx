@@ -1,32 +1,29 @@
 async function loadVehicles() {
-  if (!supabase) return;
-
-  // Mudamos o .order('created_at') para .order('name')
-  const { data, error } = await supabase
-    .from('vehicles')
-    .select('*')
-    .order('name', { ascending: true });
-
-  if (error) {
-    console.error("Erro ao buscar veículos:", error.message);
-    return;
-  }
-
-  console.log("Veículos carregados com sucesso:", data);
-  setVehicles(data || []);
-}
-
-async function loadAccesses() {
     if (!supabase) return;
     
+    // Select simples sem ordenação para evitar o erro 400
     const { data, error } = await supabase
-      .from('access_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .from('vehicles')
+      .select('*');
 
     if (error) {
-      console.error("Erro ao buscar logs:", error.message);
+      console.error("Erro na tabela vehicles:", error.message);
+      return;
+    }
+
+    console.log("Veículos carregados:", data);
+    setVehicles(data || []);
+  }
+
+  async function loadAccesses() {
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from('access_logs')
+      .select('*');
+
+    if (error) {
+      console.error("Erro na tabela access_logs:", error.message);
       return;
     }
 
