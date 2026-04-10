@@ -26,7 +26,6 @@ const MODES = ['Entrada', 'Saída'] as const;
 type Mode = (typeof MODES)[number];
 
 export default function Page() {
-  // CONFIGURAÇÃO DE ADMIN
   const ADMIN_EMAILS = ['valdir.santos@mercadolivre.com'];
 
   const [userRole, setUserRole] = useState<'admin' | 'porteiro'>('porteiro');
@@ -60,9 +59,8 @@ export default function Page() {
         setOperatorName(session.user.email?.split('@')[0] || 'Operador');
         setUserRole(resolveRole(session.user.email));
         
-        // Carrega dados se for Admin
-        await loadVehicles();
-        await loadAccesses();
+        // Chamada imediata das funções de carga
+        await Promise.all([loadVehicles(), loadAccesses()]);
       }
       setAuthReady(true);
     };
@@ -71,7 +69,8 @@ export default function Page() {
 
   async function loadVehicles() {
     if (!supabase) return;
-    const { data } = await supabase.from('vehicles').select('*').order('name');
+    const { data, error } = await supabase.from('vehicles').select('*').order('name');
+    if (error) console.error("Erro ao buscar veículos:", error);
     setVehicles((data as Vehicle[]) || []);
   }
 
@@ -84,7 +83,6 @@ export default function Page() {
   async function validate() {
     if (!supabase) return;
     const tag = tagInput.trim().toUpperCase();
-
     const { data } = await supabase.from('vehicles').select('*').eq('tag', tag).maybeSingle();
 
     if (!data) {
@@ -93,11 +91,11 @@ export default function Page() {
     }
 
     if (data.status === 'Bloqueado') {
-      setScanMsg('🚫 ACESSO BLOQUEADO PARA ESTE VEÍCULO');
+      setScanMsg('🚫 ACESSO BLOQUEADO');
       return;
     }
 
-    setScanMsg(`✅ LIBERADO: ${data.name} (${data.plate})`);
+    setScanMsg(`✅ LIBERADO: ${data.name}`);
 
     await supabase.from('access_logs').insert({
       tag: data.tag,
@@ -109,7 +107,7 @@ export default function Page() {
     });
     
     await loadAccesses();
-    setTagInput(''); // Limpa após validar
+    setTagInput('');
   }
 
   async function signIn() {
@@ -141,11 +139,28 @@ export default function Page() {
   return (
     <div style={{ padding: '20px', maxWidth: '1100px', margin: 'auto', fontFamily: 'sans-serif' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ddd', paddingBottom: '10px' }}>
-        <h3>Sistema de Acesso - {userRole.toUpperCase()}</h3>
+        <h3>Controle de Acesso - {userRole.toUpperCase()}</h3>
         <button onClick={signOut}>Sair ({operatorName})</button>
       </header>
 
-      {/* ÁREA DE OPERAÇÃO (COMUM PARA AMBOS) */}
+      {/* CARD DE RESUMO (O que estava faltando na sua imagem) */}
+      {userRole === 'admin' && (
+        <div style={{ marginTop: '20px' }}>
+          <div style={{ 
+            backgroundColor: '#1a2233', 
+            color: 'white', 
+            padding: '20px', 
+            borderRadius: '15px', 
+            width: '200px', 
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)' 
+          }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.8 }}>Veículos cadastrados</p>
+            <h1 style={{ margin: '10px 0 0 0', fontSize: '2.5rem' }}>{vehicles.length}</h1>
+          </div>
+        </div>
+      )}
+
+      {/* ÁREA DE VALIDAÇÃO */}
       <section style={{ margin: '20px 0', padding: '20px', backgroundColor: '#f4f4f4', borderRadius: '8px' }}>
         <h4>Validar Acesso</h4>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -159,18 +174,14 @@ export default function Page() {
           placeholder="Digite ou bipe a TAG"
           onKeyDown={(e) => e.key === 'Enter' && validate()}
         />
-        <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: scanMsg.includes('✅') ? 'green' : 'red' }}>
-          {scanMsg}
-        </div>
+        <div style={{ textAlign: 'center', fontWeight: 'bold', color: scanMsg.includes('✅') ? 'green' : 'red' }}>{scanMsg}</div>
       </section>
 
-      {/* ÁREA EXCLUSIVA DO ADMIN */}
+      {/* TABELAS PARA ADMIN */}
       {userRole === 'admin' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          
-          {/* TABELA DE VEÍCULOS */}
           <section>
-            <h4>📋 Veículos Cadastrados</h4>
+            <h4>📋 Veículos</h4>
             <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: '#eee' }}>
@@ -193,9 +204,8 @@ export default function Page() {
             </div>
           </section>
 
-          {/* TABELA DE LOGS */}
           <section>
-            <h4>🕒 Últimos Acessos</h4>
+            <h4>🕒 Histórico</h4>
             <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: '#eee' }}>
@@ -209,17 +219,14 @@ export default function Page() {
                   {accesses.map(log => (
                     <tr key={log.id} style={{ borderBottom: '1px solid #eee' }}>
                       <td style={{ padding: '8px' }}>{new Date(log.created_at).toLocaleString('pt-BR')}</td>
-                      <td style={{ padding: '8px' }}>{log.name} <br/><small>{log.plate}</small></td>
-                      <td style={{ padding: '8px' }}>
-                        <span style={{ color: log.action === 'Entrada' ? 'blue' : 'orange' }}>{log.action}</span>
-                      </td>
+                      <td style={{ padding: '8px' }}>{log.name}</td>
+                      <td style={{ padding: '8px' }}>{log.action}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </section>
-
         </div>
       )}
     </div>
